@@ -28,7 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--background)" }}>
       <TopBar />
-      <main className="flex-1 overflow-auto pb-20 pt-16">
+      <main className="flex-1 overflow-auto pb-20" style={{ paddingTop: "calc(4rem + env(safe-area-inset-top))" }}>
         {children}
       </main>
       <BottomNav />

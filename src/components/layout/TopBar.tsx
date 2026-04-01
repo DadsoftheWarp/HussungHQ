@@ -22,8 +22,9 @@ export default function TopBar() {
   const title = PAGE_TITLES[pathname] ?? "Hussung HQ";
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-40 h-16 flex items-center justify-between px-4 border-b"
-      style={{ background: "var(--card)", borderColor: "var(--card-border)" }}>
+    <header className="fixed top-0 left-0 right-0 z-40 border-b"
+      style={{ background: "var(--card)", borderColor: "var(--card-border)", paddingTop: "env(safe-area-inset-top)" }}>
+      <div className="h-16 flex items-center justify-between px-4">
       <div className="flex items-center gap-2">
         <div className="w-7 h-7 rounded-lg flex items-center justify-center"
           style={{ background: "var(--primary)" }}>
@@ -52,6 +53,7 @@ export default function TopBar() {
         >
           <LogOut className="w-4 h-4" style={{ color: "var(--muted-foreground)" }} />
         </button>
+      </div>
       </div>
     </header>
   );
