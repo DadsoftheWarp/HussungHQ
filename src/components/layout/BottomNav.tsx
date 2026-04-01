@@ -2,14 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Calendar, DollarSign, CheckSquare, Target, ListChecks, Utensils } from "lucide-react";
+import { LayoutDashboard, Calendar, CheckSquare, ListChecks, Utensils } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
   { href: "/dashboard/calendar", icon: Calendar, label: "Calendar" },
-  { href: "/dashboard/budget", icon: DollarSign, label: "Budget" },
   { href: "/dashboard/todos", icon: CheckSquare, label: "Todos" },
-  { href: "/dashboard/goals", icon: Target, label: "Goals" },
   { href: "/dashboard/chores", icon: ListChecks, label: "Chores" },
   { href: "/dashboard/meals", icon: Utensils, label: "Meals" },
 ];
