@@ -124,7 +124,7 @@ export default function DashboardPage() {
           className="text-2xl font-bold mt-1"
           style={{ color: "var(--foreground)" }}
         >
-          Hey, {firstName}!
+          Hello there, {firstName}!
         </h1>
         <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
           {today}
