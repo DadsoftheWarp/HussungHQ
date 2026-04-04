@@ -176,6 +176,56 @@ export default function ChoresPage() {
         })}
       </div>
 
+      {/* Completed */}
+      {complete.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>
+            Completed ({complete.length})
+          </p>
+          {complete.map((chore) => {
+            const myCompletion = chore.completions.find((c) => c.completedBy === user?.uid);
+            return (
+              <div key={chore.id} className="rounded-xl border p-3 opacity-60"
+                style={{ background: "var(--card)", borderColor: "var(--card-border)" }}>
+                <div className="flex items-start gap-3">
+                  <button onClick={() => handleToggleComplete(chore)} className="mt-0.5">
+                    {myCompletion
+                      ? <CheckCircle2 className="w-5 h-5" style={{ color: "var(--primary)" }} />
+                      : <Circle className="w-5 h-5" style={{ color: "var(--muted-foreground)" }} />}
+                  </button>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm line-through" style={{ color: "var(--muted-foreground)" }}>{chore.title}</p>
+                    {chore.description && (
+                      <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{chore.description}</p>
+                    )}
+                    <div className="flex items-center gap-2 mt-1.5">
+                      <span className="text-xs px-2 py-0.5 rounded-full"
+                        style={{ background: `${FREQUENCY_COLORS[chore.frequency]}20`, color: FREQUENCY_COLORS[chore.frequency] }}>
+                        {FREQUENCY_LABELS[chore.frequency]}
+                      </span>
+                      <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                        Resets {format(parseISO(chore.nextResetDate), "MMM d")}
+                      </span>
+                    </div>
+                    <p className="text-xs mt-1" style={{ color: "#10b981" }}>
+                      ✓ Done by {chore.completions.length} person{chore.completions.length > 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <div className="flex gap-1.5 flex-shrink-0">
+                    <button onClick={() => handleManualReset(chore)} className="p-1.5 rounded-lg" style={{ background: "var(--muted)" }}>
+                      <RefreshCw className="w-3.5 h-3.5" style={{ color: "var(--muted-foreground)" }} />
+                    </button>
+                    <button onClick={() => handleDelete(chore.id)} className="p-1.5 rounded-lg" style={{ background: "var(--muted)" }}>
+                      <Trash2 className="w-3.5 h-3.5" style={{ color: "var(--muted-foreground)" }} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Modal */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)}>
