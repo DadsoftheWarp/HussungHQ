@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import {
-  collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query, orderBy,
+  collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, query, orderBy, getDoc,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
@@ -29,6 +29,23 @@ export default function ChoresPage() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", frequency: "weekly" as ChoreFrequency });
   const [filterFreq, setFilterFreq] = useState<ChoreFrequency | "all">("all");
+  const [memberNames, setMemberNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!familyId) return;
+    getDoc(doc(db, "families", familyId)).then(async (familySnap) => {
+      if (!familySnap.exists()) return;
+      const members: string[] = familySnap.data().members ?? [];
+      const entries = await Promise.all(
+        members.map(async (uid) => {
+          const userSnap = await getDoc(doc(db, "users", uid));
+          const name = userSnap.exists() ? (userSnap.data().displayName as string) : uid;
+          return [uid, name] as [string, string];
+        })
+      );
+      setMemberNames(Object.fromEntries(entries));
+    });
+  }, [familyId]);
 
   useEffect(() => {
     if (!familyId) return;
@@ -158,7 +175,7 @@ export default function ChoresPage() {
                   </div>
                   {chore.completions.length > 0 && (
                     <p className="text-xs mt-1" style={{ color: "#10b981" }}>
-                      ✓ Done by {chore.completions.length} person{chore.completions.length > 1 ? "s" : ""}
+                      ✓ {chore.completions.map((c) => memberNames[c.completedBy] ?? c.completedBy).join(", ")}
                     </p>
                   )}
                 </div>
@@ -208,7 +225,7 @@ export default function ChoresPage() {
                       </span>
                     </div>
                     <p className="text-xs mt-1" style={{ color: "#10b981" }}>
-                      ✓ Done by {chore.completions.length} person{chore.completions.length > 1 ? "s" : ""}
+                      ✓ {chore.completions.map((c) => memberNames[c.completedBy] ?? c.completedBy).join(", ")}
                     </p>
                   </div>
                   <div className="flex gap-1.5 flex-shrink-0">
