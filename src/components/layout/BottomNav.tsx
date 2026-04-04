@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Calendar, CheckSquare, ListChecks, Utensils } from "lucide-react";
+import {
+  LayoutDashboard,
+  Calendar,
+  CheckSquare,
+  ListChecks,
+  Utensils,
+} from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Home" },
@@ -16,9 +22,15 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t"
-      style={{ background: "var(--card)", borderColor: "var(--card-border)", paddingBottom: "env(safe-area-inset-bottom)" }}>
-      <div className="flex items-center justify-around h-16">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-40 border-t"
+      style={{
+        background: "var(--card)",
+        borderColor: "var(--card-border)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
+    >
+      <div className="flex items-center justify-around h-16 px-2 py-4">
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           const active = pathname === href;
           return (
@@ -29,10 +41,16 @@ export default function BottomNav() {
             >
               <Icon
                 className="w-5 h-5 flex-shrink-0"
-                style={{ color: active ? "var(--primary)" : "var(--muted-foreground)" }}
+                style={{
+                  color: active ? "var(--primary)" : "var(--muted-foreground)",
+                }}
               />
-              <span className="text-[10px] font-medium truncate"
-                style={{ color: active ? "var(--primary)" : "var(--muted-foreground)" }}>
+              <span
+                className="text-[10px] font-medium truncate"
+                style={{
+                  color: active ? "var(--primary)" : "var(--muted-foreground)",
+                }}
+              >
                 {label}
               </span>
             </Link>

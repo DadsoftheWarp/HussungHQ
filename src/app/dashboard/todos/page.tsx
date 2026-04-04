@@ -7,7 +7,7 @@ import {
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { TodoList, TodoItem } from "@/types";
-import { Plus, X, Trash2, CheckCircle2, Circle, ChevronRight, ArrowLeft } from "lucide-react";
+import { Plus, X, Trash2, CheckCircle2, Circle, ChevronRight, ArrowLeft, RefreshCw } from "lucide-react";
 
 export default function TodosPage() {
   const { familyId, user } = useAuth();
@@ -78,6 +78,15 @@ export default function TodosPage() {
     await deleteDoc(doc(db, "families", familyId, "todoItems", itemId));
   };
 
+  const handleResetList = async () => {
+    if (!familyId || !selectedList) return;
+    await Promise.all(
+      completedItems.map((item) =>
+        updateDoc(doc(db, "families", familyId!, "todoItems", item.id), { completed: false })
+      )
+    );
+  };
+
   const listItems = selectedList ? items.filter((i) => i.listId === selectedList.id) : [];
   const activeItems = listItems.filter((i) => !i.completed);
   const completedItems = listItems.filter((i) => i.completed);
@@ -90,6 +99,11 @@ export default function TodosPage() {
             <ArrowLeft className="w-5 h-5" style={{ color: "var(--foreground)" }} />
           </button>
           <h2 className="font-semibold text-lg flex-1" style={{ color: "var(--foreground)" }}>{selectedList.name}</h2>
+          {completedItems.length > 0 && (
+            <button onClick={handleResetList} className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+              <RefreshCw className="w-3.5 h-3.5" /> Reset
+            </button>
+          )}
         </div>
 
         {/* Add item input */}
