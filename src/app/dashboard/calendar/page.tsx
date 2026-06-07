@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import {
-  collection, addDoc, deleteDoc, doc, onSnapshot,
+  collection, addDoc, deleteDoc, doc, setDoc, onSnapshot,
   query, orderBy, writeBatch, getDocs, where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -17,7 +17,7 @@ import {
   isSameMonth, addMonths, subMonths, parseISO, isToday, isSameDay,
 } from "date-fns";
 import {
-  Plus, ChevronLeft, ChevronRight, X, Clock, Trash2,
+  Plus, ChevronLeft, ChevronRight, X, Clock, Trash2, Pencil,
   RefreshCw, CalendarCheck, AlertCircle, Unlink, Repeat,
 } from "lucide-react";
 import { doesEventOccurOn, RECURRENCE_OPTIONS, RECURRENCE_LABELS } from "@/lib/calendarUtils";
@@ -30,6 +30,7 @@ export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [lastSynced, setLastSynced] = useState<Date | null>(null);
@@ -37,6 +38,7 @@ export default function CalendarPage() {
   const [form, setForm] = useState({
     title: "", time: "", endTime: "", allDay: true, description: "", color: COLORS[0],
     recurring: "none" as CalendarEvent["recurring"],
+    recurringEndDate: "",
   });
 
   // ── Live Firestore listener ───────────────────────────────────────────────
@@ -141,6 +143,9 @@ export default function CalendarPage() {
       createdBy: user.uid,
       source: "app",
       recurring: form.recurring ?? "none",
+      ...(form.recurring !== "none" && form.recurringEndDate
+        ? { recurringEndDate: form.recurringEndDate }
+        : {}),
     };
 
     // Push to Google Calendar if connected
@@ -162,7 +167,7 @@ export default function CalendarPage() {
     }
 
     await addDoc(collection(db, "families", familyId, "events"), eventData);
-    setForm({ title: "", time: "", endTime: "", allDay: true, description: "", color: COLORS[0], recurring: "none" });
+    setForm({ title: "", time: "", endTime: "", allDay: true, description: "", color: COLORS[0], recurring: "none", recurringEndDate: "" });
     setShowForm(false);
   };
 
@@ -180,6 +185,49 @@ export default function CalendarPage() {
     }
 
     await deleteDoc(doc(db, "families", familyId, "events", event.id));
+  };
+
+  // ── Edit event ────────────────────────────────────────────────────────────
+  const closeModal = () => {
+    setShowForm(false);
+    setEditingEvent(null);
+    setForm({ title: "", time: "", endTime: "", allDay: true, description: "", color: COLORS[0], recurring: "none", recurringEndDate: "" });
+  };
+
+  const openEdit = (event: CalendarEvent) => {
+    setEditingEvent(event);
+    setForm({
+      title: event.title,
+      time: event.time || "",
+      endTime: event.endTime || "",
+      allDay: event.allDay,
+      description: event.description || "",
+      color: event.color || COLORS[0],
+      recurring: event.recurring ?? "none",
+      recurringEndDate: event.recurringEndDate ?? "",
+    });
+  };
+
+  const handleUpdateEvent = async () => {
+    if (!form.title.trim() || !editingEvent || !familyId) return;
+    const updated: CalendarEvent = {
+      ...editingEvent,
+      title: form.title.trim(),
+      time: form.allDay ? "" : form.time,
+      endTime: form.allDay ? "" : form.endTime,
+      allDay: form.allDay,
+      description: form.description.trim(),
+      color: form.color,
+      recurring: form.recurring ?? "none",
+    };
+    if (form.recurring !== "none" && form.recurringEndDate) {
+      updated.recurringEndDate = form.recurringEndDate;
+    } else {
+      delete updated.recurringEndDate;
+    }
+    const { id, ...eventData } = updated;
+    await setDoc(doc(db, "families", familyId, "events", id), eventData);
+    closeModal();
   };
 
   // ── Connect Google Calendar ───────────────────────────────────────────────
@@ -317,7 +365,7 @@ export default function CalendarPage() {
               {format(selectedDate, "EEEE, MMMM d")}
             </h3>
             <button
-              onClick={() => setShowForm(true)}
+              onClick={() => { closeModal(); setShowForm(true); }}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium text-white"
               style={{ background: "var(--primary)" }}>
               <Plus className="w-4 h-4" /> Add
@@ -369,35 +417,44 @@ export default function CalendarPage() {
                   </p>
                 )}
               </div>
-              <button onClick={() => handleDelete(event)}
-                className="p-1.5 rounded-lg"
-                style={{ background: "var(--muted)" }}>
-                <Trash2 className="w-3.5 h-3.5" style={{ color: "var(--muted-foreground)" }} />
-              </button>
+              <div className="flex gap-1.5 flex-shrink-0">
+                {event.source !== "google" && (
+                  <button onClick={() => openEdit(event)}
+                    className="p-1.5 rounded-lg"
+                    style={{ background: "var(--muted)" }}>
+                    <Pencil className="w-3.5 h-3.5" style={{ color: "var(--muted-foreground)" }} />
+                  </button>
+                )}
+                <button onClick={() => handleDelete(event)}
+                  className="p-1.5 rounded-lg"
+                  style={{ background: "var(--muted)" }}>
+                  <Trash2 className="w-3.5 h-3.5" style={{ color: "var(--muted-foreground)" }} />
+                </button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Add event modal */}
-      {showForm && (
+      {/* Add / Edit event modal */}
+      {(showForm || editingEvent) && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm"
-          onClick={() => setShowForm(false)}>
+          onClick={closeModal}>
           <div className="w-full max-w-lg rounded-t-3xl p-6 pb-8 space-y-4"
             style={{ background: "var(--card)" }}
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>
-                  New Event
+                  {editingEvent ? "Edit Event" : "New Event"}
                 </h3>
-                {googleCalendarConnected && (
+                {!editingEvent && googleCalendarConnected && (
                   <p className="text-xs mt-0.5" style={{ color: "#4285F4" }}>
                     Will also be added to Google Calendar
                   </p>
                 )}
               </div>
-              <button onClick={() => setShowForm(false)}>
+              <button onClick={closeModal}>
                 <X className="w-5 h-5" style={{ color: "var(--muted-foreground)" }} />
               </button>
             </div>
@@ -451,7 +508,7 @@ export default function CalendarPage() {
                 {RECURRENCE_OPTIONS.map(({ value, label }) => (
                   <button
                     key={value}
-                    onClick={() => setForm({ ...form, recurring: value as CalendarEvent["recurring"] })}
+                    onClick={() => setForm({ ...form, recurring: value as CalendarEvent["recurring"], recurringEndDate: "" })}
                     className="py-2 px-2 rounded-xl text-xs font-medium transition-all"
                     style={{
                       background: form.recurring === value ? "var(--primary)" : "var(--muted)",
@@ -461,6 +518,19 @@ export default function CalendarPage() {
                   </button>
                 ))}
               </div>
+              {form.recurring !== "none" && (
+                <div className="mt-2">
+                  <p className="text-xs mb-1.5" style={{ color: "var(--muted-foreground)" }}>End date (required)</p>
+                  <input
+                    type="date"
+                    className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none"
+                    style={{ background: "var(--muted)", borderColor: "var(--card-border)", color: "var(--foreground)" }}
+                    value={form.recurringEndDate}
+                    min={selectedDate ? format(selectedDate, "yyyy-MM-dd") : undefined}
+                    onChange={(e) => setForm({ ...form, recurringEndDate: e.target.value })}
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex gap-2">
@@ -471,11 +541,11 @@ export default function CalendarPage() {
               ))}
             </div>
             <button
-              onClick={handleAddEvent}
-              disabled={!form.title.trim()}
+              onClick={editingEvent ? handleUpdateEvent : handleAddEvent}
+              disabled={!form.title.trim() || (form.recurring !== "none" && !form.recurringEndDate)}
               className="w-full py-3 rounded-xl font-medium text-white disabled:opacity-50"
               style={{ background: "var(--primary)" }}>
-              Add Event
+              {editingEvent ? "Save Changes" : "Add Event"}
             </button>
           </div>
         </div>

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { CalendarEvent } from "@/types";
+import { CalendarEvent, Chore } from "@/types";
 import Link from "next/link";
 import {
   Calendar,
@@ -87,6 +87,15 @@ export default function DashboardPage() {
   const [upcomingEvents, setUpcomingEvents] = useState<
     (CalendarEvent & { occurrenceDate: string })[]
   >([]);
+  const [chores, setChores] = useState<Chore[]>([]);
+
+  useEffect(() => {
+    if (!familyId) return;
+    const q = query(collection(db, "families", familyId, "chores"), orderBy("title"));
+    return onSnapshot(q, (snap) => {
+      setChores(snap.docs.map((d) => ({ id: d.id, ...d.data() } as Chore)));
+    });
+  }, [familyId]);
 
   useEffect(() => {
     if (!familyId) return;
@@ -219,38 +228,42 @@ export default function DashboardPage() {
 
       {/* Module grid */}
       <div className="grid grid-cols-2 gap-3">
-        {MODULES.map(({ href, icon: Icon, label, color, desc }) => (
-          <Link
-            key={href}
-            href={href}
-            className="rounded-2xl border p-4 flex flex-col gap-3 transition-all hover:opacity-90 active:scale-95"
-            style={{
-              background: "var(--card)",
-              borderColor: "var(--card-border)",
-            }}
-          >
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: `${color}20` }}
+        {MODULES.map(({ href, icon: Icon, label, color, desc }) => {
+          const isChores = href === "/dashboard/chores";
+          const weeklyChores = isChores ? chores.filter((c) => c.frequency === "weekly") : [];
+          const weeklyDone = weeklyChores.filter((c) => c.completions.length > 0).length;
+          const weeklyTotal = weeklyChores.length;
+          const pct = weeklyTotal > 0 ? Math.round((weeklyDone / weeklyTotal) * 100) : 0;
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className="rounded-2xl border p-4 flex flex-col gap-3 transition-all hover:opacity-90 active:scale-95 overflow-hidden"
+              style={{
+                background: isChores && weeklyTotal > 0
+                  ? `linear-gradient(to right, ${color}28 ${pct}%, var(--card) ${pct}%)`
+                  : "var(--card)",
+                borderColor: "var(--card-border)",
+              }}
             >
-              <Icon className="w-5 h-5" style={{ color }} />
-            </div>
-            <div>
-              <p
-                className="font-semibold text-sm"
-                style={{ color: "var(--foreground)" }}
+              <div
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{ background: `${color}20` }}
               >
-                {label}
-              </p>
-              <p
-                className="text-xs mt-0.5"
-                style={{ color: "var(--muted-foreground)" }}
-              >
-                {desc}
-              </p>
-            </div>
-          </Link>
-        ))}
+                <Icon className="w-5 h-5" style={{ color }} />
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>
+                  {label}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+                  {isChores && weeklyTotal > 0 ? `${weeklyDone}/${weeklyTotal} weekly done` : desc}
+                </p>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

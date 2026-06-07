@@ -27,6 +27,7 @@ export interface CalendarEvent {
   createdBy: string;
   color?: string;
   recurring?: "none" | "weekly" | "biweekly" | "monthly" | "yearly";
+  recurringEndDate?: string;       // ISO date string — recurrence stops after this date
   source?: "app" | "google";      // where the event came from
   googleEventId?: string;         // Google Calendar event id
   syncedBy?: string;              // uid of the user who synced it
@@ -157,5 +158,6 @@ export interface GroceryItem {
   quantity?: string;
   category?: string;
   checked: boolean;
-  weekStartDate: string;
+  checkedAt?: string;    // ISO date string — set when first checked, cleared on uncheck
+  weekStartDate?: string;
 }

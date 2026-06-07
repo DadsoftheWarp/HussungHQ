@@ -14,8 +14,12 @@ export function doesEventOccurOn(event: CalendarEvent, date: Date): boolean {
     return isSameDay(startDay, day);
   }
 
-  // Recurring events can't occur before their start date
+  // Recurring events can't occur before their start date or after their end date
   if (isBefore(day, startDay)) return false;
+  if (event.recurringEndDate) {
+    const endDay = startOfDay(parseISO(event.recurringEndDate));
+    if (isBefore(endDay, day)) return false;
+  }
 
   const diff = differenceInCalendarDays(day, startDay);
 

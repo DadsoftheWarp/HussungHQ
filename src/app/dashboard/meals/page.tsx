@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from "react";
 import {
-  doc, setDoc, getDoc, collection, addDoc, deleteDoc, onSnapshot, query, where,
+  doc, setDoc, collection, addDoc, deleteDoc, onSnapshot,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
-import { MealPlan, MealDay, Meal, GroceryItem } from "@/types";
+import { MealPlan, Meal, GroceryItem } from "@/types";
 import { getCurrentWeekStart, getWeekDates, MEAL_TYPES, MealType } from "@/lib/meals";
 import { format, parseISO, addWeeks, subWeeks } from "date-fns";
 import { Plus, X, ChevronLeft, ChevronRight, ShoppingCart, Trash2, Check } from "lucide-react";
@@ -52,20 +52,23 @@ export default function MealsPage() {
   // Load groceries
   useEffect(() => {
     if (!familyId) return;
-    const q = query(collection(db, "families", familyId, "groceries"), where("weekStartDate", "==", weekStart));
-    return onSnapshot(q, (snap) => {
+    return onSnapshot(collection(db, "families", familyId, "groceries"), (snap) => {
       setGroceries(snap.docs.map((d) => ({ id: d.id, ...d.data() } as GroceryItem)));
     });
-  }, [familyId, weekStart]);
+  }, [familyId]);
 
   const handleSaveMeal = async () => {
     if (!mealForm.name.trim() || !editModal || !familyId || !mealPlan) return;
     const { dayIndex, mealType } = editModal;
     const updatedDays = [...mealPlan.days];
-    updatedDays[dayIndex] = {
-      ...updatedDays[dayIndex],
-      [mealType]: { ...mealForm, name: mealForm.name.trim() },
-    };
+
+    // Firestore rejects undefined values — only include optional fields when set
+    const meal: Meal = { name: mealForm.name.trim() };
+    if (mealForm.notes) meal.notes = mealForm.notes;
+    if (mealForm.prepTime !== undefined) meal.prepTime = mealForm.prepTime;
+    if (mealForm.calories !== undefined) meal.calories = mealForm.calories;
+
+    updatedDays[dayIndex] = { ...updatedDays[dayIndex], [mealType]: meal };
     await setDoc(doc(db, "families", familyId, "mealPlans", weekStart), {
       ...mealPlan,
       days: updatedDays,
@@ -91,15 +94,32 @@ export default function MealsPage() {
     await addDoc(collection(db, "families", familyId, "groceries"), {
       name: newGrocery.trim(),
       checked: false,
-      weekStartDate: weekStart,
     });
     setNewGrocery("");
   };
 
   const handleToggleGrocery = async (item: GroceryItem) => {
     if (!familyId) return;
-    await setDoc(doc(db, "families", familyId, "groceries", item.id), { ...item, checked: !item.checked });
+    const nowChecked = !item.checked;
+    const data: Record<string, unknown> = { ...item, checked: nowChecked };
+    if (nowChecked) {
+      // Preserve existing checkedAt so the 3-day clock isn't reset on re-check
+      data.checkedAt = item.checkedAt ?? new Date().toISOString();
+    } else {
+      delete data.checkedAt;
+    }
+    await setDoc(doc(db, "families", familyId, "groceries", item.id), data);
   };
+
+  // Auto-delete checked items that have been in-cart for more than 3 days
+  useEffect(() => {
+    if (!familyId || groceries.length === 0) return;
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - 3);
+    groceries
+      .filter((g) => g.checked && g.checkedAt && new Date(g.checkedAt) < cutoff)
+      .forEach((g) => deleteDoc(doc(db, "families", familyId, "groceries", g.id)));
+  }, [groceries, familyId]);
 
   const handleDeleteGrocery = async (id: string) => {
     if (!familyId) return;
@@ -114,18 +134,20 @@ export default function MealsPage() {
 
   return (
     <div className="px-4 py-6 max-w-lg mx-auto space-y-4">
-      {/* Week nav */}
-      <div className="flex items-center justify-between">
-        <button onClick={prevWeek} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--muted)" }}>
-          <ChevronLeft className="w-5 h-5" style={{ color: "var(--foreground)" }} />
-        </button>
-        <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-          Week of {format(parseISO(weekStart + "T00:00:00"), "MMM d")}
-        </p>
-        <button onClick={nextWeek} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--muted)" }}>
-          <ChevronRight className="w-5 h-5" style={{ color: "var(--foreground)" }} />
-        </button>
-      </div>
+      {/* Week nav — only relevant for the meal planner */}
+      {activeTab === "planner" && (
+        <div className="flex items-center justify-between">
+          <button onClick={prevWeek} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--muted)" }}>
+            <ChevronLeft className="w-5 h-5" style={{ color: "var(--foreground)" }} />
+          </button>
+          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+            Week of {format(parseISO(weekStart + "T00:00:00"), "MMM d")}
+          </p>
+          <button onClick={nextWeek} className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: "var(--muted)" }}>
+            <ChevronRight className="w-5 h-5" style={{ color: "var(--foreground)" }} />
+          </button>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex rounded-xl overflow-hidden border" style={{ borderColor: "var(--card-border)" }}>

@@ -8,7 +8,7 @@ import { db } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
 import { Chore, ChoreFrequency } from "@/types";
 import { shouldReset, getNewResetDates, getNextResetDate } from "@/lib/chores";
-import { Plus, X, Trash2, CheckCircle2, Circle, RefreshCw } from "lucide-react";
+import { Plus, X, Trash2, CheckCircle2, Circle, RefreshCw, Pencil } from "lucide-react";
 import { format, parseISO } from "date-fns";
 
 const FREQUENCY_LABELS: Record<ChoreFrequency, string> = {
@@ -27,6 +27,7 @@ export default function ChoresPage() {
   const { familyId, user } = useAuth();
   const [chores, setChores] = useState<Chore[]>([]);
   const [showForm, setShowForm] = useState(false);
+  const [editingChore, setEditingChore] = useState<Chore | null>(null);
   const [form, setForm] = useState({ title: "", description: "", frequency: "weekly" as ChoreFrequency });
   const [filterFreq, setFilterFreq] = useState<ChoreFrequency | "all">("all");
   const [memberNames, setMemberNames] = useState<Record<string, string>>({});
@@ -110,6 +111,34 @@ export default function ChoresPage() {
     await deleteDoc(doc(db, "families", familyId, "chores", id));
   };
 
+  const closeModal = () => {
+    setShowForm(false);
+    setEditingChore(null);
+    setForm({ title: "", description: "", frequency: "weekly" });
+  };
+
+  const openEdit = (chore: Chore) => {
+    setEditingChore(chore);
+    setForm({ title: chore.title, description: chore.description ?? "", frequency: chore.frequency });
+  };
+
+  const handleUpdateChore = async () => {
+    if (!form.title.trim() || !editingChore || !familyId) return;
+    const updates: Record<string, unknown> = {
+      title: form.title.trim(),
+      description: form.description.trim(),
+      frequency: form.frequency,
+    };
+    // Recalculate reset dates only if frequency changed
+    if (form.frequency !== editingChore.frequency) {
+      const { lastResetDate, nextResetDate } = getNewResetDates(form.frequency);
+      updates.lastResetDate = lastResetDate;
+      updates.nextResetDate = nextResetDate;
+    }
+    await updateDoc(doc(db, "families", familyId, "chores", editingChore.id), updates);
+    closeModal();
+  };
+
   const filtered = filterFreq === "all" ? chores : chores.filter((c) => c.frequency === filterFreq);
   const incomplete = filtered.filter((c) => !(c.completions.length > 0));
   const complete = filtered.filter((c) => c.completions.length > 0);
@@ -118,7 +147,7 @@ export default function ChoresPage() {
     <div className="px-4 py-6 max-w-lg mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>Chores</h2>
-        <button onClick={() => setShowForm(true)}
+        <button onClick={() => { closeModal(); setShowForm(true); }}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-medium text-white"
           style={{ background: "var(--primary)" }}>
           <Plus className="w-4 h-4" /> Add Chore
@@ -180,6 +209,9 @@ export default function ChoresPage() {
                   )}
                 </div>
                 <div className="flex gap-1.5 flex-shrink-0">
+                  <button onClick={() => openEdit(chore)} className="p-1.5 rounded-lg" style={{ background: "var(--muted)" }}>
+                    <Pencil className="w-3.5 h-3.5" style={{ color: "var(--muted-foreground)" }} />
+                  </button>
                   <button onClick={() => handleManualReset(chore)} className="p-1.5 rounded-lg" style={{ background: "var(--muted)" }}>
                     <RefreshCw className="w-3.5 h-3.5" style={{ color: "var(--muted-foreground)" }} />
                   </button>
@@ -243,15 +275,17 @@ export default function ChoresPage() {
         </div>
       )}
 
-      {/* Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={() => setShowForm(false)}>
+      {/* Add / Edit modal */}
+      {(showForm || editingChore) && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 backdrop-blur-sm" onClick={closeModal}>
           <div className="w-full max-w-lg rounded-t-3xl p-6 pb-8 space-y-4"
             style={{ background: "var(--card)" }}
             onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
-              <h3 className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>Add Chore</h3>
-              <button onClick={() => setShowForm(false)}><X className="w-5 h-5" style={{ color: "var(--muted-foreground)" }} /></button>
+              <h3 className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>
+                {editingChore ? "Edit Chore" : "Add Chore"}
+              </h3>
+              <button onClick={closeModal}><X className="w-5 h-5" style={{ color: "var(--muted-foreground)" }} /></button>
             </div>
             <input
               className="w-full rounded-xl border px-3 py-2.5 text-sm outline-none"
@@ -282,10 +316,10 @@ export default function ChoresPage() {
                 ))}
               </div>
             </div>
-            <button onClick={handleAddChore} disabled={!form.title.trim()}
+            <button onClick={editingChore ? handleUpdateChore : handleAddChore} disabled={!form.title.trim()}
               className="w-full py-3 rounded-xl font-medium text-white disabled:opacity-50"
               style={{ background: "var(--primary)" }}>
-              Add Chore
+              {editingChore ? "Save Changes" : "Add Chore"}
             </button>
           </div>
         </div>
