@@ -161,3 +161,22 @@ export interface GroceryItem {
   checkedAt?: string;    // ISO date string — set when first checked, cleared on uncheck
   weekStartDate?: string;
 }
+
+// Watchlist
+export interface WatchlistItem {
+  id: string;
+  title: string;
+  type: "movie" | "show";
+  viewer: "logan" | "jennie" | "both";
+  status: "want" | "watching" | "watched";
+  addedAt: string; // ISO date string
+  addedBy: string; // uid
+  tmdbId?: number;
+  posterUrl?: string;
+  year?: string;
+  overview?: string;
+  seasons?: number;
+  streamingOn?: string[];
+  genres?: string[];
+  backdropUrl?: string;
+}

@@ -8,7 +8,7 @@ import { CalendarEvent, Chore } from "@/types";
 import Link from "next/link";
 import {
   Calendar,
-  DollarSign,
+  Tv,
   CheckSquare,
   Target,
   ListChecks,
@@ -37,11 +37,11 @@ const MODULES = [
     desc: "Upcoming events",
   },
   {
-    href: "/dashboard/budget",
-    icon: DollarSign,
-    label: "Budget",
+    href: "/dashboard/movies",
+    icon: Tv,
+    label: "Movies & Shows",
     color: "#10b981",
-    desc: "Track spending",
+    desc: "Watch list",
   },
   {
     href: "/dashboard/todos",
