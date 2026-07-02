@@ -184,20 +184,31 @@ function AddModal({
   const [searching, setSearching] = useState(false);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim() || selected) {
       setResults([]);
+      setSearchError(null);
       return;
     }
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
+      setSearchError(null);
       try {
         const res = await fetch(`/api/search-media?q=${encodeURIComponent(query)}`);
+        if (!res.ok) {
+          setSearchError(`Search failed (${res.status})`);
+          setResults([]);
+          return;
+        }
         const data = await res.json();
         setResults(data.results ?? []);
+      } catch (e) {
+        setSearchError(`Network error: ${e instanceof Error ? e.message : String(e)}`);
+        setResults([]);
       } finally {
         setSearching(false);
       }
@@ -210,8 +221,12 @@ function AddModal({
     setLoadingDetail(true);
     try {
       const res = await fetch(`/api/media-details?id=${result.tmdbId}&type=${result.type}`);
+      if (!res.ok) throw new Error(`${res.status}`);
       const data: MediaDetails = await res.json();
       setDetail(data);
+    } catch {
+      // Detail enrichment failed — still allow adding with basic info
+      setDetail({ streamingOn: [], genres: [], backdropUrl: null });
     } finally {
       setLoadingDetail(false);
     }
@@ -266,6 +281,13 @@ function AddModal({
               }}
             />
           </div>
+        )}
+
+        {/* Search error */}
+        {!selected && searchError && (
+          <p className="text-xs px-1" style={{ color: "#ef4444" }}>
+            {searchError}
+          </p>
         )}
 
         {/* Results list */}
